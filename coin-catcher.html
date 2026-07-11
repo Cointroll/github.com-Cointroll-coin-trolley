@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Coin Trolley</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: #0b0f1a;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    touch-action: none;
+    user-select: none;
+  }
+
+  #gameCanvas {
+    display: block;
+    background: linear-gradient(180deg, #0b0f1a 0%, #131a2e 55%, #1c1430 100%);
+    width: 100vw;
+    height: 100vh;
+  }
+
+  #hud {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 18px 22px;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .hud-block {
+    color: #f4e4c1;
+  }
+
+  .hud-label {
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #9a8968;
+    margin-bottom: 2px;
+  }
+
+  .hud-value {
+    font-size: 28px;
+    font-weight: bold;
+    color: #ffd45e;
+    text-shadow: 0 0 12px rgba(255, 212, 94, 0.4);
+  }
+
+  #best-hud .hud-value {
+    color: #f4e4c1;
+    font-size: 20px;
+  }
+
+  #overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 50% 40%, rgba(28,20,48,0.92), rgba(11,15,26,0.97));
+    z-index: 20;
+    text-align: center;
+    padding: 24px;
+  }
+
+  #overlay.hidden { display: none; }
+
+  .coin-glyph {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffe9a8, #ffd45e 55%, #c99a2e 100%);
+    box-shadow: 0 0 30px rgba(255, 212, 94, 0.5), inset 0 0 8px rgba(120, 80, 10, 0.5);
+    margin-bottom: 22px;
+    position: relative;
+  }
+
+  .coin-glyph::after {
+    content: '✦';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #8a5a0e;
+    font-size: 28px;
+  }
+
+  h1 {
+    color: #f4e4c1;
+    font-size: 34px;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+
+  .sub {
+    color: #9a8968;
+    font-size: 14px;
+    letter-spacing: 1px;
+    margin-bottom: 28px;
+    max-width: 320px;
+    line-height: 1.6;
+  }
+
+  .final-score {
+    color: #ffd45e;
+    font-size: 46px;
+    font-weight: bold;
+    margin-bottom: 6px;
+    text-shadow: 0 0 16px rgba(255, 212, 94, 0.4);
+  }
+
+  .final-label {
+    color: #9a8968;
+    font-size: 12px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 26px;
+  }
+
+  button {
+    background: linear-gradient(180deg, #ffd45e, #d9a83c);
+    color: #1c1430;
+    border: none;
+    padding: 16px 46px;
+    font-size: 16px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    border-radius: 30px;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(255, 212, 94, 0.25);
+    font-family: inherit;
+    transition: transform 0.15s ease;
+  }
+
+  button:active { transform: scale(0.96); }
+
+  button:focus-visible {
+    outline: 3px solid #f4e4c1;
+    outline-offset: 3px;
+  }
+
+  .hint {
+    margin-top: 20px;
+    color: #6b6180;
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+
+  .disclaimer {
+    position: fixed;
+    bottom: 10px;
+    left: 0; right: 0;
+    text-align: center;
+    color: #4a4560;
+    font-size: 10px;
+    letter-spacing: 1px;
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  .wallet-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,212,94,0.08);
+    border: 1px solid rgba(255,212,94,0.25);
+    padding: 8px 18px;
+    border-radius: 20px;
+    margin-bottom: 24px;
+    color: #ffd45e;
+    font-size: 15px;
+    font-weight: bold;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  button.secondary {
+    background: transparent;
+    border: 2px solid #6b6180;
+    color: #f4e4c1;
+    box-shadow: none;
+  }
+
+  #shopOverlay {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at 50% 30%, rgba(28,20,48,0.96), rgba(11,15,26,0.99));
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 20px;
+    overflow-y: auto;
+  }
+
+  #shopOverlay.hidden { display: none; }
+
+  .shop-title {
+    color: #f4e4c1;
+    font-size: 26px;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+
+  .shop-wallet {
+    color: #ffd45e;
+    font-size: 16px;
+    margin-bottom: 24px;
+  }
+
+  .shop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    max-width: 720px;
+    width: 100%;
+    margin-bottom: 26px;
+  }
+
+  .shop-card {
+    background: rgba(244,228,193,0.05);
+    border: 1px solid rgba(244,228,193,0.15);
+    border-radius: 14px;
+    padding: 18px;
+    text-align: left;
+  }
+
+  .shop-card-icon {
+    font-size: 26px;
+    margin-bottom: 8px;
+  }
+
+  .shop-card-name {
+    color: #f4e4c1;
+    font-size: 15px;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+
+  .shop-card-desc {
+    color: #9a8968;
+    font-size: 12px;
+    line-height: 1.5;
+    margin-bottom: 14px;
+    min-height: 34px;
+  }
+
+  .shop-card button {
+    width: 100%;
+    padding: 10px;
+    font-size: 13px;
+  }
+
+  .shop-card button.owned {
+    background: rgba(90,255,140,0.15);
+    color: #7dffa8;
+    cursor: default;
+  }
+
+  .shop-card button:disabled:not(.owned) {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<div id="hud">
+  <div class="hud-block">
+    <div class="hud-label">Is Baar</div>
+    <div class="hud-value" id="scoreVal">0</div>
+  </div>
+  <div class="hud-block" id="best-hud">
+    <div class="hud-label">Bank</div>
+    <div class="hud-value" id="bankVal">0</div>
+  </div>
+</div>
+
+<div id="overlay">
+  <div class="coin-glyph"></div>
+  <h1 id="overlayTitle">Coin Trolley</h1>
+  <p class="sub" id="overlaySub">Girte huye sikke pakdo, bomb se bacho. Jama sikko se trolley upgrade karo!</p>
+  <div id="scoreDisplay" style="display:none;">
+    <div class="final-score" id="finalScore">0</div>
+    <div class="final-label">Is Baar Kamaye Sikke</div>
+  </div>
+  <div class="wallet-row" id="walletRow">
+    <span>🪙</span><span id="walletVal">0</span><span style="color:#9a8968; font-weight:normal; font-size:12px;">Total Sikke (Bank)</span>
+  </div>
+  <div class="btn-row">
+    <button id="startBtn">Shuru Karo</button>
+    <button id="shopBtn" class="secondary">🛒 Trolley Shop</button>
+  </div>
+  <div class="hint">Mouse/Finger se basket move karo · Keyboard: ← →</div>
+</div>
+
+<div id="shopOverlay" class="hidden">
+  <div class="shop-title">Trolley Shop</div>
+  <div class="shop-wallet">🪙 <span id="shopWalletVal">0</span> Sikke available</div>
+  <div class="shop-grid" id="shopGrid"></div>
+  <button class="secondary" id="closeShopBtn">Wapas Jao</button>
+</div>
+
+<div class="disclaimer">Sirf entertainment ke liye · Virtual sikke, koi real paisa nahi</div>
+
+<script>
+(function() {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const overlay = document.getElementById('overlay');
+  const startBtn = document.getElementById('startBtn');
+  const scoreVal = document.getElementById('scoreVal');
+  const bankVal = document.getElementById('bankVal');
+  const overlayTitle = document.getElementById('overlayTitle');
+  const overlaySub = document.getElementById('overlaySub');
+  const scoreDisplay = document.getElementById('scoreDisplay');
+  const finalScore = document.getElementById('finalScore');
+  const walletVal = document.getElementById('walletVal');
+  const shopWalletVal = document.getElementById('shopWalletVal');
+  const shopBtn = document.getElementById('shopBtn');
+  const closeShopBtn = document.getElementById('closeShopBtn');
+  const shopOverlay = document.getElementById('shopOverlay');
+  const shopGrid = document.getElementById('shopGrid');
+
+  // Wallet = total virtual sikke jama kiye huye (session ke andar hi, real paisa NAHI hai)
+  let wallet = 0;
+
+  const UPGRADES = [
+    {
+      id: 'bigBasket',
+      icon: '🧺',
+      name: 'Badi Trolley',
+      desc: 'Trolley 35% chodi ho jayegi - zyada sikke pakdo aasani se.',
+      cost: 150
+    },
+    {
+      id: 'extraLife',
+      icon: '❤️',
+      name: 'Extra Jaan',
+      desc: 'Har game mein 1 extra life ke saath shuru karo (total 4).',
+      cost: 200
+    },
+    {
+      id: 'magnet',
+      icon: '🧲',
+      name: 'Sikka Magnet',
+      desc: 'Paas aane wale sikke halka sa trolley ki taraf khinchte hain.',
+      cost: 300
+    },
+    {
+      id: 'slowStart',
+      icon: '🐢',
+      name: 'Aasan Shuruaat',
+      desc: 'Shuru mein sikke thode dheere girte hain, warm-up ke liye.',
+      cost: 120
+    },
+    {
+      id: 'swiftTrolley',
+      icon: '⚡',
+      name: 'Tez Trolley',
+      desc: 'Trolley zyada tezi se aapke ishare pe move karti hai.',
+      cost: 180
+    }
+  ];
+
+  const owned = {};
+  UPGRADES.forEach(u => owned[u.id] = false);
+
+  function updateWalletDisplays() {
+    walletVal.textContent = wallet;
+    shopWalletVal.textContent = wallet;
+    bankVal.textContent = wallet;
+  }
+
+  function renderShop() {
+    shopGrid.innerHTML = '';
+    UPGRADES.forEach(u => {
+      const card = document.createElement('div');
+      card.className = 'shop-card';
+      const isOwned = owned[u.id];
+      card.innerHTML = `
+        <div class="shop-card-icon">${u.icon}</div>
+        <div class="shop-card-name">${u.name}</div>
+        <div class="shop-card-desc">${u.desc}</div>
+        <button data-id="${u.id}" class="${isOwned ? 'owned' : ''}" ${(!isOwned && wallet < u.cost) ? 'disabled' : ''}>
+          ${isOwned ? '✓ Khareeda Hua' : '🪙 ' + u.cost + ' mein lo'}
+        </button>
+      `;
+      shopGrid.appendChild(card);
+    });
+
+    shopGrid.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const upg = UPGRADES.find(u => u.id === id);
+        if (owned[id] || wallet < upg.cost) return;
+        wallet -= upg.cost;
+        owned[id] = true;
+        updateWalletDisplays();
+        renderShop();
+      });
+    });
+  }
+
+  shopBtn.addEventListener('click', () => {
+    renderShop();
+    shopOverlay.classList.remove('hidden');
+  });
+  closeShopBtn.addEventListener('click', () => {
+    shopOverlay.classList.add('hidden');
+  });
+
+  let W, H, DPR;
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W * DPR;
+    canvas.height = H * DPR;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  let running = false;
+  let score = 0;
+  let best = 0;
+  let lives = 3;
+  let items = [];
+  let particles = [];
+  let spawnTimer = 0;
+  let spawnInterval = 900;
+  let elapsed = 0;
+  let lastTime = 0;
+
+  const BASE_BASKET_W = 90;
+  const basket = { x: 0, y: 0, w: BASE_BASKET_W, h: 46, targetX: 0 };
+  let basketFollow = 0.22;
+
+  function resetGame() {
+    score = 0;
+    lives = owned.extraLife ? 4 : 3;
+    items = [];
+    particles = [];
+    spawnTimer = 0;
+    spawnInterval = owned.slowStart ? 1300 : 900;
+    elapsed = 0;
+    basket.w = owned.bigBasket ? BASE_BASKET_W * 1.35 : BASE_BASKET_W;
+    basketFollow = owned.swiftTrolley ? 0.34 : 0.22;
+    basket.x = W / 2 - basket.w / 2;
+    basket.targetX = basket.x;
+    basket.y = H - 110;
+    updateHud();
+  }
+
+  function updateHud() {
+    scoreVal.textContent = score;
+    updateWalletDisplays();
+  }
+
+  function spawnItem() {
+    const isBomb = Math.random() < 0.22;
+    const size = isBomb ? 34 : 30 + Math.random() * 14;
+    const x = 30 + Math.random() * (W - 60 - size);
+    const speed = 2.2 + Math.random() * 1.6 + Math.min(elapsed / 20000, 2.5);
+    items.push({
+      x, y: -size,
+      size,
+      speed,
+      isBomb,
+      rot: Math.random() * Math.PI,
+      rotSpeed: (Math.random() - 0.5) * 0.08
+    });
+  }
+
+  function spawnParticles(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x, y,
+        vx: (Math.random() - 0.5) * 6,
+        vy: (Math.random() - 0.5) * 6 - 2,
+        life: 1,
+        color
+      });
+    }
+  }
+
+  function drawBasket() {
+    ctx.save();
+    ctx.translate(basket.x + basket.w / 2, basket.y + basket.h / 2);
+    const grad = ctx.createLinearGradient(-basket.w/2, 0, basket.w/2, 0);
+    grad.addColorStop(0, '#8a5a2e');
+    grad.addColorStop(0.5, '#c98a4e');
+    grad.addColorStop(1, '#8a5a2e');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(-basket.w/2, -basket.h/2);
+    ctx.lineTo(basket.w/2, -basket.h/2);
+    ctx.lineTo(basket.w/2 - 10, basket.h/2);
+    ctx.lineTo(-basket.w/2 + 10, basket.h/2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,212,94,0.6)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawCoin(item) {
+    ctx.save();
+    ctx.translate(item.x + item.size/2, item.y + item.size/2);
+    ctx.rotate(item.rot);
+    const scaleX = Math.max(0.25, Math.abs(Math.cos(item.rot * 2)));
+    ctx.scale(scaleX, 1);
+    const grad = ctx.createRadialGradient(-item.size*0.15, -item.size*0.15, item.size*0.1, 0, 0, item.size/2);
+    grad.addColorStop(0, '#ffe9a8');
+    grad.addColorStop(0.6, '#ffd45e');
+    grad.addColorStop(1, '#b8842a');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, item.size/2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(140,90,20,0.6)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawBomb(item) {
+    ctx.save();
+    ctx.translate(item.x + item.size/2, item.y + item.size/2);
+    ctx.rotate(item.rot);
+    const grad = ctx.createRadialGradient(-item.size*0.15, -item.size*0.15, item.size*0.1, 0, 0, item.size/2);
+    grad.addColorStop(0, '#5a5a6a');
+    grad.addColorStop(0.7, '#2a2a38');
+    grad.addColorStop(1, '#141420');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, item.size/2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,90,90,0.5)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#ff5a5a';
+    ctx.beginPath();
+    ctx.moveTo(-4, -item.size/2 - 6);
+    ctx.lineTo(4, -item.size/2 - 6);
+    ctx.lineTo(0, -item.size/2 + 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawBackground() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(244, 228, 193, 0.06)';
+    for (let i = 0; i < 26; i++) {
+      const sx = (i * 197) % W;
+      const sy = (i * 133 + elapsed * 0.01) % H;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 1.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function loseLife() {
+    lives -= 1;
+    if (lives <= 0) {
+      endGame();
+    }
+  }
+
+  function endGame() {
+    running = false;
+    if (score > best) best = score;
+    wallet += score;
+    updateHud();
+    overlayTitle.textContent = lives <= 0 ? 'Game Khatam' : 'Ruk Gaye';
+    overlaySub.style.display = 'none';
+    scoreDisplay.style.display = 'block';
+    finalScore.textContent = score;
+    startBtn.textContent = 'Phir Se Khelo';
+    overlay.classList.remove('hidden');
+  }
+
+  function loop(ts) {
+    if (!running) return;
+    const dt = lastTime ? ts - lastTime : 16;
+    lastTime = ts;
+    elapsed += dt;
+
+    basket.x += (basket.targetX - basket.x) * basketFollow;
+    basket.x = Math.max(0, Math.min(W - basket.w, basket.x));
+
+    spawnTimer += dt;
+    const rampDelay = owned.slowStart ? 4000 : 0;
+    const rampElapsed = Math.max(0, elapsed - rampDelay);
+    const baseInterval = owned.slowStart ? 1300 : 900;
+    spawnInterval = Math.max(380, baseInterval - rampElapsed / 60);
+    if (spawnTimer > spawnInterval) {
+      spawnTimer = 0;
+      spawnItem();
+    }
+
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i];
+      it.y += it.speed * (dt / 16);
+      it.rot += it.rotSpeed * (dt / 16);
+
+      if (owned.magnet && !it.isBomb) {
+        const basketCx = basket.x + basket.w / 2;
+        const itCx = it.x + it.size / 2;
+        const dist = basketCx - itCx;
+        const closeY = it.y > H - 260;
+        if (closeY && Math.abs(dist) < 160) {
+          it.x += dist * 0.03;
+        }
+      }
+
+      const caught = it.y + it.size > basket.y + 6 &&
+                      it.y < basket.y + basket.h &&
+                      it.x + it.size > basket.x &&
+                      it.x < basket.x + basket.w;
+
+      if (caught) {
+        if (it.isBomb) {
+          spawnParticles(it.x + it.size/2, it.y + it.size/2, '255,90,90', 14);
+          items.splice(i, 1);
+          loseLife();
+        } else {
+          score += 10;
+          spawnParticles(it.x + it.size/2, it.y + it.size/2, '255,212,94', 10);
+          items.splice(i, 1);
+          updateHud();
+        }
+        continue;
+      }
+
+      if (it.y > H + 40) {
+        items.splice(i, 1);
+      }
+    }
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.15;
+      p.life -= 0.03;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    drawBackground();
+    for (const it of items) it.isBomb ? drawBomb(it) : drawCoin(it);
+    drawBasket();
+    for (const p of particles) {
+      ctx.fillStyle = `rgba(${p.color},${Math.max(0,p.life)})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    for (let i = 0; i < lives; i++) {
+      ctx.fillStyle = '#ffd45e';
+      ctx.beginPath();
+      ctx.arc(W - 30 - i * 22, 70, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    if (running) requestAnimationFrame(loop);
+  }
+
+  function startGame() {
+    resetGame();
+    overlay.classList.add('hidden');
+    overlaySub.style.display = 'block';
+    scoreDisplay.style.display = 'none';
+    running = true;
+    lastTime = 0;
+    requestAnimationFrame(loop);
+  }
+
+  startBtn.addEventListener('click', startGame);
+
+  function setBasketFromClientX(clientX) {
+    const rect = canvas.getBoundingClientRect();
+    basket.targetX = clientX - rect.left - basket.w / 2;
+  }
+
+  canvas.addEventListener('mousemove', (e) => setBasketFromClientX(e.clientX));
+  canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (e.touches[0]) setBasketFromClientX(e.touches[0].clientX);
+  }, { passive: false });
+  canvas.addEventListener('touchstart', (e) => {
+    if (e.touches[0]) setBasketFromClientX(e.touches[0].clientX);
+  });
+
+  const keys = {};
+  window.addEventListener('keydown', (e) => { keys[e.key] = true; });
+  window.addEventListener('keyup', (e) => { keys[e.key] = false; });
+  setInterval(() => {
+    if (!running) return;
+    if (keys['ArrowLeft']) basket.targetX -= 14;
+    if (keys['ArrowRight']) basket.targetX += 14;
+    basket.targetX = Math.max(0, Math.min(W - basket.w, basket.targetX));
+  }, 16);
+
+  resetGame();
+  drawBackground();
+  drawBasket();
+})();
+</script>
+
+</body>
+</html>
