@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Coin Trolley - Upgraded</title>
+    <title>Coin Trolley</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body {
             height: 100%;
             overflow: hidden;
-            background: #0b0f19;
-            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #0b0f1a;
+            font-family: 'Georgia', 'Times New Roman', serif;
             touch-action: none;
             user-select: none;
         }
@@ -25,13 +25,13 @@
             top: 0; left: 0; right: 0;
             display: flex;
             justify-content: space-between;
+            align-items: flex-start;
             padding: 18px 22px;
             pointer-events: none;
             z-index: 10;
-            color: #f4e4c1;
         }
-        .hud-block { display: flex; flex-direction: column; }
-        .hud-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #9a8968; margin-bottom: 2px; }
+        .hud-block { color: #f4e4c1; }
+        .hud-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #9a8968; margin-bottom: 2px; display: block; }
         .hud-value { font-size: 28px; font-weight: bold; text-shadow: 0 0 12px rgba(255, 212, 94, 0.4); }
         
         #overlay {
@@ -41,25 +41,27 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: rgba(11, 15, 26, 0.85);
+            background: radial-gradient(circle at 50% 40%, rgba(28,20,48,0.92), rgba(11,15,26,0.97));
             z-index: 20;
-            color: white;
             text-align: center;
             padding: 24px;
+            color: #f4e4c1;
         }
         #overlay.hidden { display: none; }
-        #overlay h1 { color: #e74c3c; font-size: 36px; margin-bottom: 10px; }
-        #overlay p { font-size: 18px; margin-bottom: 20px; color: #a0aec0; }
+        #overlay h1 { font-size: 32px; color: #ff4757; margin-bottom: 12px; letter-spacing: 1px; }
+        #overlay p { font-size: 18px; margin-bottom: 24px; color: #9a8968; }
         #restartBtn {
-            padding: 12px 30px;
-            font-size: 18px;
+            padding: 14px 32px;
+            font-size: 16px;
             font-weight: bold;
-            background: #f1c40f;
-            color: #0b0f19;
+            background: #ffd45e;
+            color: #0b0f1a;
             border: none;
-            border-radius: 25px;
+            border-radius: 4px;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(241, 196, 15, 0.4);
+            box-shadow: 0 0 20px rgba(255, 212, 94, 0.2);
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
     </style>
 </head>
@@ -79,9 +81,9 @@
     <canvas id="gameCanvas"></canvas>
 
     <div id="overlay" class="hidden">
-        <h1 id="overlayTitle">GAME OVER</h1>
-        <p>You hit a bomb! Final Score: <span id="finalScore">0</span></p>
-        <button id="restartBtn" onclick="resetGame()">Play Again</button>
+        <h1>GAME OVER</h1>
+        <p>Final Score: <span id="finalScore">0</span></p>
+        <button id="restartBtn" onclick="resetGame()">Try Again</button>
     </div>
 
     <script>
@@ -95,34 +97,35 @@
         let score = 0;
         let level = 1;
         let isGameOver = false;
-        let baseSpeedMultiplier = 1;
+        let speedMultiplier = 1;
         let lastSpawnTime = 0;
-        let spawnInterval = 900;
+        let spawnInterval = 1000;
 
-        // स्क्रीन साइज के हिसाब से कैनवास सेट करना (बिल्कुल पहले जैसा फुल स्क्रीन)
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            trolley.y = canvas.height - 70;
-        }
-
+        // तुम्हारी पुरानी ट्रॉली का साइज और पोजीशन
         const trolley = {
-            x: window.innerWidth / 2 - 45,
-            y: window.innerHeight - 70,
-            width: 90,
-            height: 25,
-            speed: 12
+            x: 0,
+            y: 0,
+            width: 80,
+            height: 16,
+            speed: 14
         };
 
         let items = [];
         let keys = {};
 
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            trolley.y = canvas.height - 80; // जमीन से परफेक्ट दूरी पर ट्रॉली
+            if (trolley.x === 0) trolley.x = canvas.width / 2 - trolley.width / 2;
+        }
+
         window.addEventListener("resize", resizeCanvas);
         window.addEventListener("keydown", (e) => keys[e.key] = true);
         window.addEventListener("keyup", (e) => keys[e.key] = false);
 
-        // एकदम स्मूथ टच कंट्रोल (जैसे पहले था)
-        canvas.addEventListener("touchmove", (e) => {
+        // तुम्हारा ओरिजिनल सुपर स्मूथ टच कंट्रोल
+        window.addEventListener("touchmove", (e) => {
             if (isGameOver) return;
             let touchX = e.touches[0].clientX;
             trolley.x = touchX - trolley.width / 2;
@@ -130,44 +133,46 @@
 
         function spawnItem() {
             const rand = Math.random();
-            let type, color, size, speed, points;
+            let type, color, size, points;
 
-            if (rand < 0.75) {
-                // 75% चांस: कॉइन
+            if (rand < 0.80) {
+                // 80% सिक्के गिरेंगे
                 type = "coin";
-                color = "#ffd45e"; // चमकीला सोने जैसा रंग
-                size = 14;
-                speed = (Math.random() * 2 + 3) * baseSpeedMultiplier;
+                color = "#ffd45e"; // तुम्हारा वही पुराना चमकीला गोल्ड कॉइन
+                size = 12;
                 points = 1;
             } else {
-                // 25% चांस: बम
+                // 20% लाल खतरे वाले डॉट्स गिरेंगे
                 type = "bomb";
-                color = "#ff4757"; // लाल-काला खतरनाक बम
-                size = 16;
-                speed = (Math.random() * 2 + 4) * baseSpeedMultiplier;
+                color = "#ff4757"; // लाल खतरा
+                size = 14;
                 points = 0;
             }
 
             const x = Math.random() * (canvas.width - size * 2) + size;
-            items.push({ x, y: -20, type, color, size, speed, points });
+            // जैसे-जैसे लेवल बढ़ेगा, गिरने की स्पीड थोड़ी बढ़ेगी
+            const fallSpeed = (Math.random() * 2 + 4) * speedMultiplier; 
+            
+            items.push({ x, y: -20, type, color, size, speed: fallSpeed, points });
         }
 
         function update(time) {
             if (isGameOver) return;
 
+            // कीबोर्ड सपोर्ट
             if (keys["ArrowLeft"] || keys["a"]) trolley.x -= trolley.speed;
             if (keys["ArrowRight"] || keys["d"]) trolley.x += trolley.speed;
 
             if (trolley.x < 0) trolley.x = 0;
             if (trolley.x > canvas.width - trolley.width) trolley.x = canvas.width - trolley.width;
 
-            // लेवल और स्पीड बढ़ाना (हर 8 पॉइंट पर थोड़ा तेज़ होगा)
-            let currentLevel = Math.floor(score / 8) + 1;
+            // हर 10 पॉइंट पर गेम का लेवल और स्पीड थोड़ी बढ़ेगी
+            let currentLevel = Math.floor(score / 10) + 1;
             if (currentLevel !== level) {
                 level = currentLevel;
                 levelEl.innerText = level;
-                baseSpeedMultiplier = 1 + (level - 1) * 0.2;
-                spawnInterval = Math.max(450, 900 - (level - 1) * 80);
+                speedMultiplier = 1 + (level - 1) * 0.15;
+                spawnInterval = Math.max(500, 1000 - (level - 1) * 50);
             }
 
             if (time - lastSpawnTime > spawnInterval) {
@@ -178,7 +183,7 @@
             for (let i = items.length - 1; i >= 0; i--) {
                 items[i].y += items[i].speed;
 
-                // टकराव (Collision)
+                // परफेक्ट कोलिशन डिटेक्शन (टकराव)
                 if (
                     items[i].x + items[i].size > trolley.x &&
                     items[i].x - items[i].size < trolley.x + trolley.width &&
@@ -204,26 +209,17 @@
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // पुरानी ट्रॉली जैसा डिज़ाइन
-            ctx.fillStyle = "#ffffff";
+            // तुम्हारी ओरिजिनल ट्रॉली का लुक (क्लीन और मैचिंग थीम में)
+            ctx.fillStyle = "#f4e4c1";
             ctx.fillRect(trolley.x, trolley.y, trolley.width, trolley.height);
 
-            // आइटम्स ड्रा करना
+            // सिक्के और लाल डॉट्स ड्रा करना
             items.forEach(item => {
                 ctx.beginPath();
                 ctx.arc(item.x, item.y, item.size, 0, Math.PI * 2);
                 ctx.fillStyle = item.color;
                 ctx.fill();
                 ctx.closePath();
-
-                // अगर बम है तो उसके अंदर एक छोटा सा ब्लैक डॉट डिज़ाइन के लिए
-                if (item.type === "bomb") {
-                    ctx.beginPath();
-                    ctx.arc(item.x, item.y, item.size/2, 0, Math.PI * 2);
-                    ctx.fillStyle = "#1e2229";
-                    ctx.fill();
-                    ctx.closePath();
-                }
             });
         }
 
@@ -242,19 +238,19 @@
         function resetGame() {
             score = 0;
             level = 1;
-            baseSpeedMultiplier = 1;
-            spawnInterval = 900;
+            speedMultiplier = 1;
+            spawnInterval = 1000;
             items = [];
             isGameOver = false;
-            trolley.x = canvas.width / 2 - 45;
+            trolley.x = canvas.width / 2 - trolley.width / 2;
             scoreEl.innerText = score;
             levelEl.innerText = level;
             overlay.classList.add("hidden");
         }
 
-        // स्टार्ट करने के लिए
         resizeCanvas();
         requestAnimationFrame(gameLoop);
     </script>
 </body>
 </html>
+
