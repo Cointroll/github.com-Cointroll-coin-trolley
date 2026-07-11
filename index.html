@@ -2,94 +2,86 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Super Coin & Bomb Trolley</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Coin Trolley - Upgraded</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            background: #2c3e50;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+        html, body {
+            height: 100%;
             overflow: hidden;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        #gameContainer {
-            position: relative;
+            background: #0b0f19;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            touch-action: none;
+            user-select: none;
         }
         #gameCanvas {
-            background: #34495e;
-            border: 4px solid #fff;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
             display: block;
+            background: linear-gradient(180deg, #0b0f1a 0%, #131a2e 55%, #1c1430 100%);
+            width: 100vw;
+            height: 100vh;
         }
-        #uiContainer {
-            position: absolute;
-            top: 15px;
-            left: 15px;
-            right: 15px;
+        #hud {
+            position: fixed;
+            top: 0; left: 0; right: 0;
             display: flex;
             justify-content: space-between;
-            color: white;
-            font-size: 20px;
-            font-weight: bold;
+            padding: 18px 22px;
             pointer-events: none;
+            z-index: 10;
+            color: #f4e4c1;
         }
-        #gameOverScreen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: none;
+        .hud-block { display: flex; flex-direction: column; }
+        .hud-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #9a8968; margin-bottom: 2px; }
+        .hud-value { font-size: 28px; font-weight: bold; text-shadow: 0 0 12px rgba(255, 212, 94, 0.4); }
+        
+        #overlay {
+            position: fixed;
+            inset: 0;
+            display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
+            justify-content: center;
+            background: rgba(11, 15, 26, 0.85);
+            z-index: 20;
             color: white;
-            border: 4px solid #fff;
+            text-align: center;
+            padding: 24px;
         }
-        #gameOverScreen h1 {
-            color: #e74c3c;
-            font-size: 40px;
-            margin-bottom: 10px;
-        }
-        #gameOverScreen p {
-            font-size: 22px;
-            margin-bottom: 20px;
-        }
+        #overlay.hidden { display: none; }
+        #overlay h1 { color: #e74c3c; font-size: 36px; margin-bottom: 10px; }
+        #overlay p { font-size: 18px; margin-bottom: 20px; color: #a0aec0; }
         #restartBtn {
-            padding: 10px 25px;
+            padding: 12px 30px;
             font-size: 18px;
             font-weight: bold;
-            background: #2ecc71;
-            color: white;
+            background: #f1c40f;
+            color: #0b0f19;
             border: none;
-            border-radius: 5px;
+            border-radius: 25px;
             cursor: pointer;
-            transition: 0.2s;
-        }
-        #restartBtn:hover {
-            background: #27ae60;
+            box-shadow: 0 4px 15px rgba(241, 196, 15, 0.4);
         }
     </style>
 </head>
 <body>
 
-    <div id="gameContainer">
-        <canvas id="gameCanvas" width="400" height="600"></canvas>
-        
-        <div id="uiContainer">
-            <div>Score: <span id="score">0</span></div>
-            <div>Level: <span id="level">1</span></div>
+    <div id="hud">
+        <div class="hud-block">
+            <span class="hud-label">Score</span>
+            <span id="score" class="hud-value">0</span>
         </div>
+        <div class="hud-block" style="text-align: right;">
+            <span class="hud-label">Level</span>
+            <span id="level" class="hud-value">1</span>
+        </div>
+    </div>
 
-        <div id="gameOverScreen">
-            <h1>GAME OVER</h1>
-            <p>Your Score: <span id="finalScore">0</span></p>
-            <button id="restartBtn" onclick="resetGame()">Play Again</button>
-        </div>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="overlay" class="hidden">
+        <h1 id="overlayTitle">GAME OVER</h1>
+        <p>You hit a bomb! Final Score: <span id="finalScore">0</span></p>
+        <button id="restartBtn" onclick="resetGame()">Play Again</button>
     </div>
 
     <script>
@@ -97,112 +89,96 @@
         const ctx = canvas.getContext("2d");
         const scoreEl = document.getElementById("score");
         const levelEl = document.getElementById("level");
-        const gameOverScreen = document.getElementById("gameOverScreen");
+        const overlay = document.getElementById("overlay");
         const finalScoreEl = document.getElementById("finalScore");
 
         let score = 0;
         let level = 1;
         let isGameOver = false;
         let baseSpeedMultiplier = 1;
-        let spawnInterval = 1000;
         let lastSpawnTime = 0;
+        let spawnInterval = 900;
 
-        // ट्रॉली (Player) Settings
+        // स्क्रीन साइज के हिसाब से कैनवास सेट करना (बिल्कुल पहले जैसा फुल स्क्रीन)
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            trolley.y = canvas.height - 70;
+        }
+
         const trolley = {
-            x: canvas.width / 2 - 40,
-            y: canvas.height - 60,
-            width: 80,
-            height: 35,
-            speed: 10
+            x: window.innerWidth / 2 - 45,
+            y: window.innerHeight - 70,
+            width: 90,
+            height: 25,
+            speed: 12
         };
 
-        // गिरेने वाली चीज़ों की लिस्ट (Coins and Bombs)
         let items = [];
         let keys = {};
 
-        // Controls
+        window.addEventListener("resize", resizeCanvas);
         window.addEventListener("keydown", (e) => keys[e.key] = true);
         window.addEventListener("keyup", (e) => keys[e.key] = false);
 
+        // एकदम स्मूथ टच कंट्रोल (जैसे पहले था)
         canvas.addEventListener("touchmove", (e) => {
             if (isGameOver) return;
-            let rect = canvas.getBoundingClientRect();
-            let touchX = e.touches[0].clientX - rect.left;
+            let touchX = e.touches[0].clientX;
             trolley.x = touchX - trolley.width / 2;
         });
 
-        // नए आइटम्स पैदा करना (Gold, Silver, or Bomb)
         function spawnItem() {
             const rand = Math.random();
-            let type, color, size, speedBonus, points;
+            let type, color, size, speed, points;
 
-            if (rand < 0.6) {
-                // 60% चांस: गोल्ड कॉइन
-                type = "gold";
-                color = "#f1c40f"; // पीला
+            if (rand < 0.75) {
+                // 75% चांस: कॉइन
+                type = "coin";
+                color = "#ffd45e"; // चमकीला सोने जैसा रंग
                 size = 14;
-                speedBonus = 2;
+                speed = (Math.random() * 2 + 3) * baseSpeedMultiplier;
                 points = 1;
-            } else if (rand < 0.8) {
-                // 20% चांस: सिल्वर कॉइन (तेज़ और ज़्यादा पॉइंट)
-                type = "silver";
-                color = "#3498db"; // नीला/चांदी
-                size = 11;
-                speedBonus = 4;
-                points = 3;
             } else {
-                // 20% चांस: बम!
+                // 25% चांस: बम
                 type = "bomb";
-                color = "#000000"; // काला बम
+                color = "#ff4757"; // लाल-काला खतरनाक बम
                 size = 16;
-                speedBonus = 3;
+                speed = (Math.random() * 2 + 4) * baseSpeedMultiplier;
                 points = 0;
             }
 
             const x = Math.random() * (canvas.width - size * 2) + size;
-            items.push({
-                x: x,
-                y: -20,
-                type: type,
-                color: color,
-                size: size,
-                points: points,
-                speed: (Math.random() * 2 + speedBonus) * baseSpeedMultiplier
-            });
+            items.push({ x, y: -20, type, color, size, speed, points });
         }
 
-        // गेम अपडेट लॉजिक
         function update(time) {
             if (isGameOver) return;
 
-            // ट्रॉली मूवमेंट
             if (keys["ArrowLeft"] || keys["a"]) trolley.x -= trolley.speed;
             if (keys["ArrowRight"] || keys["d"]) trolley.x += trolley.speed;
 
-            // बाउंड्री लॉक
             if (trolley.x < 0) trolley.x = 0;
             if (trolley.x > canvas.width - trolley.width) trolley.x = canvas.width - trolley.width;
 
-            // डिफिकल्टी / लेवल बढ़ाना (हर 10 पॉइंट पर स्पीड बढ़ेगी)
-            let currentLevel = Math.floor(score / 10) + 1;
+            // लेवल और स्पीड बढ़ाना (हर 8 पॉइंट पर थोड़ा तेज़ होगा)
+            let currentLevel = Math.floor(score / 8) + 1;
             if (currentLevel !== level) {
                 level = currentLevel;
                 levelEl.innerText = level;
-                baseSpeedMultiplier = 1 + (level - 1) * 0.25; // 25% स्पीड बढ़ेगी हर लेवल पर
-                spawnInterval = Math.max(400, 1000 - (level - 1) * 100); // सिक्के जल्दी-जल्दी गिरेंगे
+                baseSpeedMultiplier = 1 + (level - 1) * 0.2;
+                spawnInterval = Math.max(450, 900 - (level - 1) * 80);
             }
 
-            // रैंडम टाइम पर स्पॉन करना
             if (time - lastSpawnTime > spawnInterval) {
                 spawnItem();
                 lastSpawnTime = time;
             }
 
-            // आइटम्स की मूवमेंट और टकराव
             for (let i = items.length - 1; i >= 0; i--) {
                 items[i].y += items[i].speed;
 
-                // ट्रॉली से टकराव (Collision)
+                // टकराव (Collision)
                 if (
                     items[i].x + items[i].size > trolley.x &&
                     items[i].x - items[i].size < trolley.x + trolley.width &&
@@ -219,25 +195,20 @@
                     continue;
                 }
 
-                // स्क्रीन से बाहर जाने पर हटाना
                 if (items[i].y > canvas.height + 20) {
                     items.splice(i, 1);
                 }
             }
         }
 
-        // स्क्रीन पर ड्रा करना
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // ट्रॉली ड्रा करें (लाल रंग की सुंदर बकेट)
-            ctx.fillStyle = "#e74c3c";
+            // पुरानी ट्रॉली जैसा डिज़ाइन
+            ctx.fillStyle = "#ffffff";
             ctx.fillRect(trolley.x, trolley.y, trolley.width, trolley.height);
-            // ट्रॉली का ऊपरी हिस्सा
-            ctx.fillStyle = "#c0392b";
-            ctx.fillRect(trolley.x, trolley.y, trolley.width, 5);
 
-            // कॉइन्स और बम ड्रा करें
+            // आइटम्स ड्रा करना
             items.forEach(item => {
                 ctx.beginPath();
                 ctx.arc(item.x, item.y, item.size, 0, Math.PI * 2);
@@ -245,48 +216,45 @@
                 ctx.fill();
                 ctx.closePath();
 
-                // बम पर छोटा सा लाल डॉट (FUSE) दिखाने के लिए
+                // अगर बम है तो उसके अंदर एक छोटा सा ब्लैक डॉट डिज़ाइन के लिए
                 if (item.type === "bomb") {
                     ctx.beginPath();
-                    ctx.arc(item.x - 4, item.y - 4, 3, 0, Math.PI * 2);
-                    ctx.fillStyle = "#e74c3c";
+                    ctx.arc(item.x, item.y, item.size/2, 0, Math.PI * 2);
+                    ctx.fillStyle = "#1e2229";
                     ctx.fill();
                     ctx.closePath();
                 }
             });
         }
 
-        // मेन गेम लूप
         function gameLoop(time) {
             update(time);
             draw();
             requestAnimationFrame(gameLoop);
         }
 
-        // गेम ओवर
         function endGame() {
             isGameOver = true;
             finalScoreEl.innerText = score;
-            gameOverScreen.style.display = "flex";
+            overlay.classList.remove("hidden");
         }
 
-        // रीस्टार्ट गेम
         function resetGame() {
             score = 0;
             level = 1;
             baseSpeedMultiplier = 1;
-            spawnInterval = 1000;
+            spawnInterval = 900;
             items = [];
             isGameOver = false;
-            trolley.x = canvas.width / 2 - 40;
+            trolley.x = canvas.width / 2 - 45;
             scoreEl.innerText = score;
             levelEl.innerText = level;
-            gameOverScreen.style.display = "none";
+            overlay.classList.add("hidden");
         }
 
-        // पहली बार गेम शुरू करने के लिए
+        // स्टार्ट करने के लिए
+        resizeCanvas();
         requestAnimationFrame(gameLoop);
     </script>
 </body>
 </html>
-
